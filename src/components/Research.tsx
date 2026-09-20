@@ -54,8 +54,8 @@ export default function Research({ m }: { m: any }) {
           <ul className="grid gap-2 sm:grid-cols-3">
             {[
               ["Rethick C B", "RA2411056010016"],
-              ["Anumitha", "RA2411056010017"],
-              ["Dheepak S", "RA2411056010018"],
+              ["Anumitha", "RA2411056010012"],
+              ["Dheepak S", "RA2411056010007"],
             ].map(([name, reg]) => (
               <li key={reg}>
                 <span className="block text-[14px] font-semibold text-[var(--color-ink)]">{name}</span>
