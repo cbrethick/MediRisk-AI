@@ -1,0 +1,24 @@
+# Raw MEPS data — 57 MB, downloaded separately. See README.
+h256.dta
+*.dta
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Trained artefacts. metrics.json and model.json in public/ ARE committed,
+# because the deployed site needs them; the heavy intermediates are not.
+ml/artifacts/*.joblib
+ml/artifacts/*.parquet
+
+# Node / build
+node_modules/
+dist/
+.vite/
+
+# Editor / OS
+.DS_Store
+*.pages
+.vercel
