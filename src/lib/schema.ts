@@ -197,7 +197,10 @@ export const STEPS: Step[] = [
 export function emptyAnswers(): Record<string, number | null> {
   const a: Record<string, number | null> = {};
   for (const s of STEPS) for (const q of s.questions) a[q.key] = null;
-  for (const k of CONDITION_KEYS) a[k] = null;
+  // Untapped conditions mean "no" (as the form tells the user), NOT "unanswered".
+  // Missing condition flags are rare in MEPS (~1%) and carry a large learned
+  // effect, so leaving them null would wrongly pull everyone towards Low risk.
+  for (const k of CONDITION_KEYS) a[k] = 0;
   a.age = 45;
   return a;
 }

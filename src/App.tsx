@@ -12,7 +12,7 @@ import Wizard from "./components/Wizard";
 import Result from "./components/Result";
 import Research from "./components/Research";
 import {
-  loadModel, predict, withEngineered, type Answers, type ModelSpec, type Prediction,
+  fillSkipped, loadModel, predict, withEngineered, type Answers, type ModelSpec, type Prediction,
 } from "./lib/model";
 import { CONDITION_KEYS } from "./lib/schema";
 import { money, setCurrency } from "./lib/currency";
@@ -39,7 +39,7 @@ export default function App() {
 
   const run = (raw: Answers) => {
     if (!spec) return;
-    setPrediction(predict(withEngineered(raw, CONDITION_KEYS), spec));
+    setPrediction(predict(withEngineered(fillSkipped(raw, spec), CONDITION_KEYS), spec));
     setView("result");
   };
 

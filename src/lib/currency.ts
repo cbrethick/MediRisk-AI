@@ -39,6 +39,27 @@ export function money(usd: number): string {
   return `₹${Math.round(inr).toLocaleString("en-IN")}`;
 }
 
+/** Round to two significant figures so a range reads "₹1.6 L – ₹4.3 L". */
+function roundNice(x: number): number {
+  if (x <= 0) return 0;
+  const p = 10 ** (Math.floor(Math.log10(x)) - 1);
+  return Math.round(x / p) * p;
+}
+
+/** Format a USD range for display, e.g. "₹1.6 L – ₹4.3 L". */
+export function moneyRange(lowUsd: number, highUsd: number): string {
+  const f = code === "USD" ? 1 : rate;
+  const lo = roundNice(lowUsd * f);
+  const hi = Math.max(roundNice(highUsd * f), lo);
+  const fmt = (v: number) => {
+    if (code === "USD") return `$${Math.round(v).toLocaleString("en-US")}`;
+    if (v >= 1e7) return `₹${+(v / 1e7).toFixed(2)} Cr`;
+    if (v >= 1e5) return `₹${+(v / 1e5).toFixed(1)} L`;
+    return `₹${Math.round(v).toLocaleString("en-IN")}`;
+  };
+  return `${fmt(lo)} – ${fmt(hi)}`;
+}
+
 /** Exact rupee figure, for the one place that should show the full number. */
 export function moneyExact(usd: number): string {
   return code === "USD"

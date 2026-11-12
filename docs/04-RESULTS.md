@@ -1,7 +1,7 @@
 # 4 · Results and validation
 
 > Generated automatically by `ml/make_report.py` from `ml/artifacts/metrics.json`.
-> Training run: **2026-09-20 20:31:17**. Do not edit by hand — re-run the pipeline.
+> Training run: **2026-11-12 10:29:39**. Do not edit by hand — re-run the pipeline.
 
 Every figure on this page comes from **3,097 held-out people** who took no
 part in training, in feature engineering, or in choosing a model.
@@ -196,6 +196,29 @@ Sort everyone by predicted cost and cut into ten equal groups: the top tenth rea
 did spend **21.6×** what the bottom tenth spent. A model
 with R² of 0.09 that separates groups this cleanly is useful
 for pricing a pool, even though it cannot tell any individual what they will spend.
+
+### Cost range — what the app shows instead of a single number
+
+Because one person's spending is so unpredictable, the web app reports a **range**:
+the middle half (25th–75th percentile) of what people with a similar predicted
+cost actually spent. The table is learned on the training split, from the
+600 training people nearest to each point on a grid
+of predicted costs, and the browser interpolates between grid points.
+
+On the held-out test set, **51.8%** of people
+fell inside their own range (target: 50%), so the range is honestly calibrated.
+
+| Predicted (average) | Range shown (25th–75th pct.) | Median |
+|---|---|---|
+| ₹46,687 | ₹0 – ₹22,506 | ₹0 |
+| ₹365,221 | ₹8,800 – ₹257,048 | ₹73,304 |
+| ₹578,661 | ₹46,442 – ₹522,918 | ₹169,972 |
+| ₹861,496 | ₹116,842 – ₹963,468 | ₹343,816 |
+| ₹1,423,268 | ₹279,004 – ₹1,686,850 | ₹722,788 |
+| ₹4,527,905 | ₹867,570 – ₹3,630,088 | ₹1,720,048 |
+
+The average usually sits near or above the top of the range: a few very large
+bills pull the mean up, while most people spend less than it.
 
 ---
 

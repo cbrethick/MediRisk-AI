@@ -5,9 +5,9 @@
  *  - One topic per step, with a visible progress rail, so the form never feels
  *    like a wall of inputs.
  *  - Every question states WHY it is being asked, inline, before it is answered.
- *  - Every question can be skipped. The model has explicit missingness
- *    indicators, so "prefer not to say" is a real answer rather than a silent
- *    zero, and the interface says so.
+ *  - Every question can be skipped. BMI and exercise skips reach the model as
+ *    missing (it has explicit missingness indicators); other skips are filled
+ *    with the typical adult's answer (see fillSkipped in lib/model.ts).
  *  - Nothing is sent anywhere. The model runs in this tab.
  */
 import { useMemo, useState } from "react";

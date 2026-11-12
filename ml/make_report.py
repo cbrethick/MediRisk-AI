@@ -332,6 +332,26 @@ did spend **{REG['topBottomDecileRatio']:.1f}×** what the bottom tenth spent. A
 with R² of {REG['tweedieGlm']['r2']:.2f} that separates groups this cleanly is useful
 for pricing a pool, even though it cannot tell any individual what they will spend.
 
+### Cost range — what the app shows instead of a single number
+
+Because one person's spending is so unpredictable, the web app reports a **range**:
+the middle half (25th–75th percentile) of what people with a similar predicted
+cost actually spent. The table is learned on the training split, from the
+{REG['costRange']['neighbours']} training people nearest to each point on a grid
+of predicted costs, and the browser interpolates between grid points.
+
+On the held-out test set, **{REG['costRange']['testCoverage']:.1%}** of people
+fell inside their own range (target: 50%), so the range is honestly calibrated.
+
+{table(["Predicted (average)", "Range shown (25th–75th pct.)", "Median"],
+       [[money(np.exp(REG['costRange']['logPredGrid'][i])),
+         f"{money(REG['costRange']['low'][i])} – {money(REG['costRange']['high'][i])}",
+         money(REG['costRange']['median'][i])]
+        for i in (0, 8, 16, 24, 32, 39)])}
+
+The average usually sits near or above the top of the range: a few very large
+bills pull the mean up, while most people spend less than it.
+
 ---
 
 ## 4.4 Two-part model, Part 1 — does this person spend anything?

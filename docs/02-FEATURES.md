@@ -87,8 +87,11 @@ which is false. The `bmi__isna` column lets the model learn what non-response
 itself predicts, which is information that would otherwise be destroyed.
 
 This is also what lets the web form offer "prefer not to say" as a genuine answer
-rather than a polite fiction: a skipped question is handled at prediction time
-exactly as it was handled during training.
+rather than a polite fiction for BMI and exercise, where non-response is common
+(~30%) and the model learned what it means. For questions that are almost never
+missing in the survey (under 2%), the app fills a skip with the typical adult's
+answer instead, because the missingness effect learned from such a tiny group is
+unreliable.
 
 ### The resulting matrix
 
