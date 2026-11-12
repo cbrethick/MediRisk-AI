@@ -74,6 +74,9 @@ model = {
     # converts only at render time, so changing this never changes a prediction.
     "currency": {"code": DISPLAY_CURRENCY, "usdRate": USD_TO_INR},
     "tierCuts": [float(c) for c in b["cuts"]],
+    # Lookup table for the cost RANGE shown to the user (see train.py, step 4e).
+    "costRange": json.loads((ARTIFACTS / "metrics.json").read_text())
+                     ["regression"]["costRange"],
     "featureNames": enc.feature_names_,
     "conditionLabels": CONDITION_LABELS,
 }

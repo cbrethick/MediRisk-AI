@@ -20,6 +20,10 @@ export function setCurrency(c: { code?: string; usdRate?: number } | undefined) 
   if (c?.code === "USD" || c?.code === "INR") code = c.code;
 }
 
+export function getCode() {
+  return code;
+}
+
 export function getRate() {
   return rate;
 }
@@ -37,6 +41,28 @@ export function money(usd: number): string {
   if (Math.abs(inr) >= 1e7) return `₹${(inr / 1e7).toFixed(2)} Cr`;
   if (Math.abs(inr) >= 1e5) return `₹${(inr / 1e5).toFixed(2)} L`;
   return `₹${Math.round(inr).toLocaleString("en-IN")}`;
+}
+
+/** Round to two significant figures so a range reads "₹1.6 L – ₹4.3 L". */
+function roundNice(x: number): number {
+  if (x <= 0) return 0;
+  const p = 10 ** (Math.floor(Math.log10(x)) - 1);
+  return Math.round(x / p) * p;
+}
+
+/** Format a USD range for display, e.g. "₹1.6 L – ₹4.3 L". */
+export function moneyRange(lowUsd: number, highUsd: number,
+                           as: "INR" | "USD" = code): string {
+  const f = as === "USD" ? 1 : rate;
+  const lo = roundNice(lowUsd * f);
+  const hi = Math.max(roundNice(highUsd * f), lo);
+  const fmt = (v: number) => {
+    if (as === "USD") return `$${Math.round(v).toLocaleString("en-US")}`;
+    if (v >= 1e7) return `₹${+(v / 1e7).toFixed(2)} Cr`;
+    if (v >= 1e5) return `₹${+(v / 1e5).toFixed(1)} L`;
+    return `₹${Math.round(v).toLocaleString("en-IN")}`;
+  };
+  return `${fmt(lo)} – ${fmt(hi)}`;
 }
 
 /** Exact rupee figure, for the one place that should show the full number. */

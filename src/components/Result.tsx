@@ -15,7 +15,7 @@ import {
 import type { ModelSpec, Prediction } from "../lib/model";
 import { FEATURE_LABELS } from "../lib/schema";
 import { money, pct } from "./ui";
-import { getRate } from "../lib/currency";
+import { getCode, getRate, moneyRange } from "../lib/currency";
 
 const TONE = [
   { name: "Low", color: "var(--color-low)", soft: "var(--color-low-soft)" },
@@ -119,20 +119,37 @@ export default function Result({
       {/* ------------------------------------------------------- expected cost */}
       <section className="card mt-5 p-6 rise">
         <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-accent)]">
-          <Coins size={14} strokeWidth={2.4} /> Expected annual cost
+          <Coins size={14} strokeWidth={2.4} /> Expected annual cost range
         </div>
         <div className="mt-2 flex flex-wrap items-baseline gap-3">
           <span className="font-[family-name:var(--font-display)] text-[2.4rem] leading-none tabular-nums">
-            {money(prediction.expectedCost)}
+            {moneyRange(prediction.costLow, prediction.costHigh)}
           </span>
           <span className="text-[14px] text-[var(--color-ink-faint)]">per year</span>
         </div>
+        <p className="mt-1.5 text-[13.5px] tabular-nums text-[var(--color-ink-faint)]">
+          {getCode() === "INR"
+            ? <>In US dollars: {moneyRange(prediction.costLow, prediction.costHigh, "USD")}</>
+            : <>In Indian rupees: {moneyRange(prediction.costLow, prediction.costHigh, "INR")}</>}
+          {" "}· switch currency with ₹ / $ at the top
+        </p>
         <p className="mt-3 text-[14.5px] leading-relaxed text-[var(--color-ink-soft)]">
-          This is an <strong>average over many people like you</strong>, not a forecast of
-          your own bill. Among a thousand people with this exact profile, a few will
-          spend nothing and one or two might spend six figures — this figure is what
-          they cost on average, which is the number an insurer needs in order to price
-          a pool.
+          <strong>Half of the people with a profile like yours spent between these two
+          amounts</strong> in a year — a quarter spent less, a quarter spent more. The
+          range comes from the real spending of survey respondents whose predicted cost
+          was close to yours
+          {spec.costRange && (
+            <>; on {metrics?.dataset?.nTest?.toLocaleString() ?? "held-out"} people the
+              model never saw, {pct(spec.costRange.testCoverage, 0)} landed inside their
+              own range</>
+          )}.
+        </p>
+        <p className="mt-3 text-[14px] leading-relaxed text-[var(--color-ink-soft)]">
+          Average for this profile:{" "}
+          <strong className="tabular-nums">{money(prediction.expectedCost)}</strong> a
+          year. The average sits towards the top of the range, or above it, because a
+          few people with very large bills pull it up — that average is the number an
+          insurer needs to price a pool.
         </p>
         <p className="mt-3 flex items-start gap-2 rounded-lg bg-[var(--color-canvas)] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--color-ink-soft)]">
           <AlertTriangle size={14} className="mt-0.5 shrink-0 text-[var(--color-medium)]" />
@@ -145,11 +162,20 @@ export default function Result({
           </span>
         </p>
         <p className="mt-3 rounded-lg bg-[var(--color-canvas)] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--color-ink-soft)]">
-          <strong>About the rupee figure.</strong> The survey behind this model records{" "}
-          <em>US</em> healthcare spending in dollars, converted here at ₹{getRate()} to
-          the dollar. A US cost shown in rupees is still a US cost — the same
-          treatment is several times cheaper in India — so read this as American
-          prices in a familiar unit, not as an Indian hospital bill.
+          {getCode() === "INR" ? (
+            <>
+              <strong>About the rupee figure.</strong> The survey behind this model records{" "}
+              <em>US</em> healthcare spending in dollars, converted here at ₹{getRate()} to
+              the dollar. A US cost shown in rupees is still a US cost — the same
+              treatment is several times cheaper in India — so read this as American
+              prices in a familiar unit, not as an Indian hospital bill.
+            </>
+          ) : (
+            <>
+              <strong>About the dollar figure.</strong> These are US healthcare prices from
+              2024, in the same dollars the model was trained on — no conversion applied.
+            </>
+          )}
         </p>
         <p className="mt-3 text-[13px] text-[var(--color-ink-soft)]">
           Probability you have any healthcare spending at all this year:{" "}

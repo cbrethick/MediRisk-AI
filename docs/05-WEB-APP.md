@@ -65,9 +65,23 @@ Design rules it follows:
   inputs.
 - **Every question states why it is being asked**, inline, expandable, before it
   is answered. Nobody is asked for information without being told what it is for.
-- **Every question can be skipped.** Because the model was trained with explicit
-  missingness indicators, "prefer not to say" is handled at prediction time
-  exactly as it was during training — it is a real answer, not a silent zero.
+- **Every question can be skipped.** For BMI and exercise, which are missing
+  for about 30% of survey adults, "prefer not to say" goes to the model as
+  genuinely missing, exactly as in training. Every other question is missing
+  for under 2% of respondents, so a skip there is filled with the typical
+  adult's answer; otherwise one skip would place the person in a tiny, unusual
+  group and swing the result. Untapped chronic conditions count as "no".
+- **Pick your state, not a region.** The form lists all 50 states and DC. The
+  public MEPS file records only the Census region (AHRQ removes state for
+  privacy), so the chosen state is mapped to its region and the form says so,
+  e.g. "New York is in the Northeast Census region".
+- **Rupees or dollars.** A ₹ / $ switch in the top bar changes every amount in
+  the app. Dollars are the model's own unit; rupees are converted at ₹88. The
+  result also shows the range in the other currency underneath.
+- **A cost range, not a single number.** The result headline is the middle half
+  (25th–75th percentile) of what people with a similar predicted cost actually
+  spent, e.g. "₹56,000 – ₹5.9 L". The table behind it is learned on the training
+  split and checked on held-out people (see §4.3 of the results).
 - **BMI is calculated, not demanded.** Height and weight go in; BMI comes out,
   with its band named.
 - **Nothing leaves the tab.** Stated on the screen, and true.

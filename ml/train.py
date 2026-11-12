@@ -434,6 +434,47 @@ for r in lift:
 top_bottom = lift[-1]["actualMean"] / max(lift[0]["actualMean"], 1)
 print(f"  Top decile costs {top_bottom:.1f}x the bottom decile in reality.")
 
+# --- 4e. cost RANGE, not a single number --------------------------------------
+# A single expected cost hides how wide spending really is for people with the
+# same profile. So the app shows a range: the middle half (25th-75th percentile)
+# of what people with a similar predicted cost ACTUALLY spent.
+#
+# The lookup table is learned on the TRAINING split only: on a grid of predicted
+# costs, take the RANGE_NEIGHBOURS training people whose prediction is closest
+# (in log space) and record the quantiles of their real spending. The browser
+# interpolates on this grid. Coverage is then checked on the held-out test set:
+# if the band is honest, about half of test people land inside their own band.
+RANGE_Q = (0.25, 0.50, 0.75)
+RANGE_NEIGHBOURS = 600
+pred_tr = tweedie.predict(scaler_c.transform(X_tr))
+log_tr = np.log(pred_tr)
+grid = np.quantile(log_tr, np.linspace(0.01, 0.99, 40))
+band = []
+for g in grid:
+    near = np.argsort(np.abs(log_tr - g))[:RANGE_NEIGHBOURS]
+    band.append(np.quantile(cost_tr[near], RANGE_Q))
+band = np.maximum.accumulate(np.array(band), axis=0)   # keep the band monotone
+
+
+def cost_band(pred: np.ndarray) -> np.ndarray:
+    lp = np.log(pred)
+    return np.stack([np.interp(lp, grid, band[:, j]) for j in range(3)], axis=1)
+
+
+band_te = cost_band(cost_pred)
+coverage = float(np.mean((cost_te >= band_te[:, 0]) & (cost_te <= band_te[:, 2])))
+print(f"\n  Cost range (middle 50% of similar people) -- held-out coverage "
+      f"{coverage:.1%} (target 50%)")
+for i in (0, 10, 20, 30, 39):
+    print(f"    predicted ${np.exp(grid[i]):>8,.0f}  ->  range "
+          f"${band[i, 0]:>8,.0f} - ${band[i, 2]:>8,.0f}  (median ${band[i, 1]:,.0f})")
+cost_range = {
+    "quantiles": list(RANGE_Q), "neighbours": RANGE_NEIGHBOURS,
+    "logPredGrid": grid.tolist(),
+    "low": band[:, 0].tolist(), "median": band[:, 1].tolist(),
+    "high": band[:, 2].tolist(), "testCoverage": coverage,
+}
+
 results["regression"] = {
     "deployed": f"Tweedie GLM (log link, power={best_pw})",
     "tweediePower": best_pw,
@@ -442,6 +483,7 @@ results["regression"] = {
     "xgboostTweedie": xgb_tw_m, "singleStageLogSmearing": single_m,
     "olsRawDollars": raw_m, "meanBaseline": mean_m,
     "decileLift": lift, "topBottomDecileRatio": float(top_bottom),
+    "costRange": cost_range,
     "scatter": [{"actual": float(a), "predicted": float(pp)}
                 for a, pp in zip(cost_te[::7], cost_pred[::7])][:900],
 }

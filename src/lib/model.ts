@@ -30,6 +30,15 @@ export interface ModelSpec {
   costModel: { power: number; coef: number[]; intercept: number };
   currency?: { code: string; usdRate: number };
   tierCuts: number[];
+  /** Middle-50% band of actual spending for people with a similar prediction.
+   *  Learned on the training split in ml/train.py (step 4e). */
+  costRange?: {
+    logPredGrid: number[];
+    low: number[];
+    median: number[];
+    high: number[];
+    testCoverage: number;
+  };
   featureNames: string[];
   conditionLabels: Record<string, string>;
 }
@@ -49,6 +58,9 @@ export interface Prediction {
   tierIndex: number;
   tierName: string;
   expectedCost: number;
+  /** 25th-75th percentile of what similar people actually spent (USD). */
+  costLow: number;
+  costHigh: number;
   anySpendProbability: number;
   contributions: Contribution[];
   baselineLogit: number;
@@ -92,7 +104,39 @@ function encode(a: Answers, m: ModelSpec): number[] {
   return out;
 }
 
-const dot = (a: number[], b: number[]) => a.reduce((s, x, i) => s + x * b[i], 0);
+/** Piecewise-linear interpolation, clamped at both ends (same as numpy.interp). */
+function interp(x: number, xs: number[], ys: number[]): number {
+  if (x <= xs[0]) return ys[0];
+  const n = xs.length - 1;
+  if (x >= xs[n]) return ys[n];
+  let i = 1;
+  while (xs[i] < x) i++;
+  const t = (x - xs[i - 1]) / (xs[i] - xs[i - 1]);
+  return ys[i - 1] + t * (ys[i] - ys[i - 1]);
+}
+
+const dot =(a: number[], b: number[]) => a.reduce((s, x, i) => s + x * b[i], 0);
+
+/**
+ * Questions where "prefer not to say" is passed to the model as genuinely missing.
+ * BMI and exercise are missing for ~30% of MEPS adults, so the model learned a
+ * meaningful effect for "not answered". Every other question is missing for
+ * under ~2% of respondents (insurance, income, marital status: 0%). A skip there
+ * would put the person among a tiny, unusual group and swing the prediction
+ * wildly, so a skipped answer is filled with the typical adult's answer instead.
+ */
+const MEANINGFULLY_MISSING = new Set(["bmi", "exercise_days"]);
+
+export function fillSkipped(raw: Answers, m: ModelSpec): Answers {
+  const a: Answers = { ...raw };
+  for (const [k, v] of Object.entries(a)) {
+    if ((v === null || v === undefined) && !MEANINGFULLY_MISSING.has(k)
+        && m.reference.raw[k] !== undefined) {
+      a[k] = m.reference.raw[k];
+    }
+  }
+  return a;
+}
 
 /** Derive the engineered features from the raw answers, exactly as data_prep.py does. */
 export function withEngineered(raw: Answers, conditionKeys: string[]): Answers {
@@ -140,6 +184,12 @@ export function predict(answers: Answers, m: ModelSpec): Prediction {
   // --- expected annual cost: Tweedie GLM, log link --------------------------
   const expectedCost = Math.exp(dot(z, m.costModel.coef) + m.costModel.intercept);
 
+  // --- cost range: middle half of what similar people actually spent -------
+  const cr = m.costRange;
+  const lp = Math.log(expectedCost);
+  const costLow = cr ? interp(lp, cr.logPredGrid, cr.low) : expectedCost;
+  const costHigh = cr ? interp(lp, cr.logPredGrid, cr.high) : expectedCost;
+
   // --- probability of any spending at all -----------------------------------
   const anyLogit = dot(z, m.anySpendModel.coef) + m.anySpendModel.intercept;
   const anySpendProbability = 1 / (1 + Math.exp(-anyLogit));
@@ -173,6 +223,8 @@ export function predict(answers: Answers, m: ModelSpec): Prediction {
     tierIndex,
     tierName: m.tierModel.classes[tierIndex],
     expectedCost,
+    costLow,
+    costHigh,
     anySpendProbability,
     contributions,
     baselineLogit,
