@@ -76,8 +76,13 @@ Design rules it follows:
   privacy), so the chosen state is mapped to its region and the form says so,
   e.g. "New York is in the Northeast Census region".
 - **Rupees or dollars.** A ₹ / $ switch in the top bar changes every amount in
-  the app. Dollars are the model's own unit; rupees are converted at ₹88. The
-  result also shows the range in the other currency underneath.
+  the app. Dollars are the model's own unit. The result also shows the range
+  in the other currency underneath.
+- **Editable exchange rate.** Next to the switch, "$1 = ₹ [88]" can be changed
+  to today's rate (e.g. 95); every rupee amount re-prices immediately and the
+  rate is remembered in that browser. "reset" returns to the default, which
+  comes from `USD_TO_INR` in `ml/config.py`. The rate never changes a
+  prediction, which is always computed in dollars.
 - **A cost range, not a single number.** The result headline is the middle half
   (25th–75th percentile) of what people with a similar predicted cost actually
   spent, e.g. "₹56,000 – ₹5.9 L". The table behind it is learned on the training

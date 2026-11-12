@@ -15,10 +15,11 @@ import {
   fillSkipped, loadModel, predict, withEngineered, type Answers, type ModelSpec, type Prediction,
 } from "./lib/model";
 import { CONDITION_KEYS } from "./lib/schema";
-import { getCode, money, setCurrency } from "./lib/currency";
+import { getCode, getRate, money, setCurrency } from "./lib/currency";
 
 type Cur = "INR" | "USD";
 const CUR_KEY = "medirisk-currency";
+const RATE_KEY = "medirisk-usd-inr";
 
 type View = "home" | "assess" | "result" | "research";
 
@@ -29,12 +30,21 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [currency, setCur] = useState<Cur>("INR");
+  const [rate, setRateState] = useState(88);
+  const [defaultRate, setDefaultRate] = useState(88);
 
   // Display currency only: predictions are computed in USD and never change.
   const chooseCurrency = (c: Cur) => {
     setCurrency({ code: c });
     setCur(c);
     try { localStorage.setItem(CUR_KEY, c); } catch { /* storage unavailable */ }
+  };
+
+  // Rupees per dollar. Changes only how dollars are shown in rupees.
+  const chooseRate = (r: number) => {
+    setCurrency({ usdRate: r });
+    setRateState(r);
+    try { localStorage.setItem(RATE_KEY, String(r)); } catch { /* storage unavailable */ }
   };
 
   useEffect(() => {
@@ -47,6 +57,11 @@ export default function App() {
         let saved: string | null = null;
         try { saved = localStorage.getItem(CUR_KEY); } catch { /* ignore */ }
         if (saved === "INR" || saved === "USD") setCurrency({ code: saved });
+        setDefaultRate(getRate());
+        let savedRate = NaN;
+        try { savedRate = Number(localStorage.getItem(RATE_KEY)); } catch { /* ignore */ }
+        if (savedRate >= 1 && savedRate <= 1000) setCurrency({ usdRate: savedRate });
+        setRateState(getRate());
         setCur(getCode());
         setSpec(s); setMetrics(m);
       })
@@ -63,7 +78,8 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <Nav view={view} setView={setView} currency={currency} onCurrency={chooseCurrency} />
+      <Nav view={view} setView={setView} currency={currency} onCurrency={chooseCurrency}
+        rate={rate} defaultRate={defaultRate} onRate={chooseRate} />
 
       {error && (
         <div className="mx-auto mt-10 max-w-lg card border-[var(--color-high)] p-5 text-[14px]">
@@ -103,8 +119,9 @@ export default function App() {
 
 /* ---------------------------------------------------------------------- nav */
 
-function Nav({ view, setView, currency, onCurrency }: {
+function Nav({ view, setView, currency, onCurrency, rate, defaultRate, onRate }: {
   view: View; setView: (v: View) => void; currency: Cur; onCurrency: (c: Cur) => void;
+  rate: number; defaultRate: number; onRate: (r: number) => void;
 }) {
   const tabs: { id: View; label: string }[] = [
     { id: "home", label: "Overview" },
@@ -113,7 +130,7 @@ function Nav({ view, setView, currency, onCurrency }: {
   ];
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--color-line)] bg-[var(--color-surface)]/85 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3 sm:px-6">
         <button onClick={() => setView("home")} className="flex items-center gap-2.5">
           <span className="grid h-8 w-8 place-items-center rounded-lg bg-[var(--color-accent)] text-white">
             <Activity size={17} strokeWidth={2.4} />
@@ -125,7 +142,7 @@ function Nav({ view, setView, currency, onCurrency }: {
             </span>
           </span>
         </button>
-        <nav className="flex items-center gap-1">
+        <nav className="flex flex-wrap items-center gap-1">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -153,9 +170,53 @@ function Nav({ view, setView, currency, onCurrency }: {
               </button>
             ))}
           </span>
+          {currency === "INR" && (
+            <RateEditor rate={rate} defaultRate={defaultRate} onRate={onRate} />
+          )}
         </nav>
       </div>
     </header>
+  );
+}
+
+/**
+ * Exchange-rate box: "$1 = Rs [88]". Typing a new rate (e.g. today's 95)
+ * re-prices every rupee amount in the app immediately. It never changes a
+ * prediction, which is always computed in US dollars.
+ */
+function RateEditor({ rate, defaultRate, onRate }: {
+  rate: number; defaultRate: number; onRate: (r: number) => void;
+}) {
+  const [draft, setDraft] = useState(String(rate));
+  useEffect(() => { setDraft(String(rate)); }, [rate]);
+  const n = Number(draft);
+  const valid = draft.trim() !== "" && n >= 1 && n <= 1000;
+  return (
+    <label className="ml-1 inline-flex items-center gap-1 rounded-lg border border-[var(--color-line)] bg-white px-2 py-1 text-[12.5px] text-[var(--color-ink-soft)]"
+      title="Rupees per US dollar. Change it to today's rate; every rupee amount updates.">
+      <span className="hidden sm:inline">$1 =</span> ₹
+      <input
+        type="number" inputMode="decimal" min={1} max={1000} step="0.01"
+        value={draft}
+        onChange={(e) => {
+          setDraft(e.target.value);
+          const v = Number(e.target.value);
+          if (e.target.value.trim() !== "" && v >= 1 && v <= 1000) onRate(v);
+        }}
+        onBlur={() => { if (!valid) setDraft(String(rate)); }}
+        aria-label="Rupees per US dollar"
+        className={`w-14 rounded border px-1 py-0.5 text-right font-semibold tabular-nums text-[var(--color-ink)] focus:outline-none ${
+          valid ? "border-transparent focus:border-[var(--color-accent)]" : "border-[var(--color-high)]"
+        }`}
+      />
+      {rate !== defaultRate && (
+        <button type="button" onClick={() => onRate(defaultRate)}
+          className="ml-0.5 text-[11.5px] font-medium text-[var(--color-accent)] hover:underline"
+          title={`Reset to ₹${defaultRate}`}>
+          reset
+        </button>
+      )}
+    </label>
   );
 }
 
