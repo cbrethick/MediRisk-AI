@@ -25,7 +25,7 @@ export interface Question {
   label: string;
   why: string;                       // shown under the question, always
   icon: LucideIcon;
-  kind: "choice" | "number" | "slider";
+  kind: "choice" | "number" | "slider" | "state";
   choices?: Choice[];
   min?: number;
   max?: number;
@@ -41,6 +41,29 @@ export interface Step {
   icon: LucideIcon;
   questions: Question[];
 }
+
+/**
+ * US states and DC, each with its Census region (1 Northeast, 2 Midwest,
+ * 3 South, 4 West) -- the same regions MEPS records in REGION24. The model only
+ * ever sees the region; the state is kept for the form.
+ */
+export const US_STATES: { name: string; region: 1 | 2 | 3 | 4 }[] = [
+  ...["Connecticut", "Maine", "Massachusetts", "New Hampshire", "New Jersey", "New York",
+    "Pennsylvania", "Rhode Island", "Vermont"].map((name) => ({ name, region: 1 as const })),
+  ...["Illinois", "Indiana", "Iowa", "Kansas", "Michigan", "Minnesota", "Missouri",
+    "Nebraska", "North Dakota", "Ohio", "South Dakota", "Wisconsin"]
+    .map((name) => ({ name, region: 2 as const })),
+  ...["Alabama", "Arkansas", "Delaware", "District of Columbia", "Florida", "Georgia",
+    "Kentucky", "Louisiana", "Maryland", "Mississippi", "North Carolina", "Oklahoma",
+    "South Carolina", "Tennessee", "Texas", "Virginia", "West Virginia"]
+    .map((name) => ({ name, region: 3 as const })),
+  ...["Alaska", "Arizona", "California", "Colorado", "Hawaii", "Idaho", "Montana", "Nevada",
+    "New Mexico", "Oregon", "Utah", "Washington", "Wyoming"]
+    .map((name) => ({ name, region: 4 as const })),
+].sort((a, b) => a.name.localeCompare(b.name));
+
+/** Form-only answer key holding the index into US_STATES. Not a model input. */
+export const STATE_KEY = "us_state";
 
 export const CONDITION_KEYS = [
   "HIBPDX", "DIABDX_M18", "CHDDX", "CANCERDX",
@@ -79,14 +102,14 @@ export const STEPS: Step[] = [
         why: "Used as a model input and also audited afterwards: the Research page reports error rates separately for men and women so you can see whether the model treats them differently.",
       },
       {
-        key: "region", label: "Which region do you live in?", icon: MapPin, kind: "choice",
+        key: "region", label: "Which US state do you live in?", icon: MapPin, kind: "state",
         choices: [
           { value: 1, label: "Northeast" },
           { value: 2, label: "Midwest" },
           { value: 3, label: "South" },
           { value: 4, label: "West" },
         ],
-        why: "US healthcare prices vary a lot by region, so the same treatment produces a different bill depending on where it happens. These are the four US Census regions MEPS uses.",
+        why: "US healthcare prices vary a lot by location. The public MEPS file does not record each person's state (AHRQ removes it to protect privacy), only one of four Census regions, so your state is used through its region.",
       },
     ],
   },

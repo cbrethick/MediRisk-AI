@@ -20,6 +20,10 @@ export function setCurrency(c: { code?: string; usdRate?: number } | undefined) 
   if (c?.code === "USD" || c?.code === "INR") code = c.code;
 }
 
+export function getCode() {
+  return code;
+}
+
 export function getRate() {
   return rate;
 }
@@ -47,12 +51,13 @@ function roundNice(x: number): number {
 }
 
 /** Format a USD range for display, e.g. "₹1.6 L – ₹4.3 L". */
-export function moneyRange(lowUsd: number, highUsd: number): string {
-  const f = code === "USD" ? 1 : rate;
+export function moneyRange(lowUsd: number, highUsd: number,
+                           as: "INR" | "USD" = code): string {
+  const f = as === "USD" ? 1 : rate;
   const lo = roundNice(lowUsd * f);
   const hi = Math.max(roundNice(highUsd * f), lo);
   const fmt = (v: number) => {
-    if (code === "USD") return `$${Math.round(v).toLocaleString("en-US")}`;
+    if (as === "USD") return `$${Math.round(v).toLocaleString("en-US")}`;
     if (v >= 1e7) return `₹${+(v / 1e7).toFixed(2)} Cr`;
     if (v >= 1e5) return `₹${+(v / 1e5).toFixed(1)} L`;
     return `₹${Math.round(v).toLocaleString("en-IN")}`;

@@ -16,7 +16,7 @@ import {
   ShieldCheck, Sparkles, Stethoscope, X,
 } from "lucide-react";
 import {
-  CONDITIONS, CONDITION_KEYS, STEPS, emptyAnswers, type Question,
+  CONDITIONS, CONDITION_KEYS, STATE_KEY, STEPS, US_STATES, emptyAnswers, type Question,
 } from "../lib/schema";
 import { bmiFrom, type Answers } from "../lib/model";
 
@@ -125,8 +125,38 @@ function BmiCalculator({ value, onChange }: {
 
 /* ------------------------------------------------------------------ question */
 
-function QuestionCard({ q, value, onChange }: {
+/** State dropdown. The model input is the state's Census region. */
+function StatePicker({ q, stateIdx, onPick }: {
+  q: Question; stateIdx: number | null; onPick: (idx: number | null) => void;
+}) {
+  const st = stateIdx === null ? null : US_STATES[stateIdx];
+  const regionName = st && q.choices!.find((c) => c.value === st.region)?.label;
+  return (
+    <div>
+      <select
+        value={stateIdx ?? ""}
+        onChange={(e) => onPick(e.target.value === "" ? null : Number(e.target.value))}
+        aria-label={q.label}
+        className="w-full max-w-sm rounded-xl border border-[var(--color-line)] bg-white px-3.5 py-2.5 text-[14px] font-medium text-[var(--color-ink)] focus:border-[var(--color-accent)] focus:outline-none"
+      >
+        <option value="">Select your state…</option>
+        {US_STATES.map((s, i) => (
+          <option key={s.name} value={i}>{s.name}</option>
+        ))}
+      </select>
+      {st && (
+        <p className="mt-2 text-[13px] text-[var(--color-ink-soft)]">
+          {st.name} is in the <strong>{regionName}</strong> Census region — that is what the
+          model uses.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function QuestionCard({ q, value, onChange, stateIdx = null, onState }: {
   q: Question; value: number | null; onChange: (v: number | null) => void;
+  stateIdx?: number | null; onState?: (idx: number | null) => void;
 }) {
   const Icon = q.icon;
   return (
@@ -139,11 +169,16 @@ function QuestionCard({ q, value, onChange }: {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-[15.5px] font-semibold text-[var(--color-ink)]">{q.label}</h3>
             {q.optional && (
-              <SkipButton active={value === null} onClick={() => onChange(null)} />
+              <SkipButton active={value === null}
+                onClick={() => (q.kind === "state" && onState ? onState(null) : onChange(null))} />
             )}
           </div>
 
           <div className="mt-4">
+            {q.kind === "state" && onState && (
+              <StatePicker q={q} stateIdx={stateIdx} onPick={onState} />
+            )}
+
             {q.kind === "choice" && (
               <div className="flex flex-wrap gap-2">
                 {q.choices!.map((c) => {
@@ -219,7 +254,7 @@ export default function Wizard({ onComplete }: { onComplete: (a: Answers) => voi
   const set = (k: string, v: number | null) => setAnswers((a) => ({ ...a, [k]: v }));
 
   const answeredCount = Object.entries(answers).filter(
-    ([k, v]) => v !== null && !CONDITION_KEYS.includes(k),
+    ([k, v]) => v !== null && !CONDITION_KEYS.includes(k) && k !== STATE_KEY,
   ).length;
   const totalQuestions = STEPS.reduce((n, s) => n + s.questions.length, 0);
 
@@ -272,7 +307,13 @@ export default function Wizard({ onComplete }: { onComplete: (a: Answers) => voi
       <div className="space-y-4">
         {current.questions.map((q) => (
           <QuestionCard key={q.key} q={q} value={answers[q.key] ?? null}
-            onChange={(v) => set(q.key, v)} />
+            onChange={(v) => set(q.key, v)}
+            stateIdx={answers[STATE_KEY] ?? null}
+            onState={(idx) => setAnswers((a) => ({
+              ...a,
+              [STATE_KEY]: idx,
+              region: idx === null ? null : US_STATES[idx].region,
+            }))} />
         ))}
 
         {/* the conditions grid only appears on the health step */}

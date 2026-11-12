@@ -15,7 +15,10 @@ import {
   fillSkipped, loadModel, predict, withEngineered, type Answers, type ModelSpec, type Prediction,
 } from "./lib/model";
 import { CONDITION_KEYS } from "./lib/schema";
-import { money, setCurrency } from "./lib/currency";
+import { getCode, money, setCurrency } from "./lib/currency";
+
+type Cur = "INR" | "USD";
+const CUR_KEY = "medirisk-currency";
 
 type View = "home" | "assess" | "result" | "research";
 
@@ -25,13 +28,28 @@ export default function App() {
   const [metrics, setMetrics] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
+  const [currency, setCur] = useState<Cur>("INR");
+
+  // Display currency only: predictions are computed in USD and never change.
+  const chooseCurrency = (c: Cur) => {
+    setCurrency({ code: c });
+    setCur(c);
+    try { localStorage.setItem(CUR_KEY, c); } catch { /* storage unavailable */ }
+  };
 
   useEffect(() => {
     Promise.all([
       loadModel(),
       fetch(`${import.meta.env.BASE_URL}metrics.json`).then((r) => r.json()),
     ])
-      .then(([s, m]) => { setCurrency(s.currency); setSpec(s); setMetrics(m); })
+      .then(([s, m]) => {
+        setCurrency(s.currency);
+        let saved: string | null = null;
+        try { saved = localStorage.getItem(CUR_KEY); } catch { /* ignore */ }
+        if (saved === "INR" || saved === "USD") setCurrency({ code: saved });
+        setCur(getCode());
+        setSpec(s); setMetrics(m);
+      })
       .catch((e) => setError(String(e)));
   }, []);
 
@@ -45,7 +63,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      <Nav view={view} setView={setView} />
+      <Nav view={view} setView={setView} currency={currency} onCurrency={chooseCurrency} />
 
       {error && (
         <div className="mx-auto mt-10 max-w-lg card border-[var(--color-high)] p-5 text-[14px]">
@@ -85,7 +103,9 @@ export default function App() {
 
 /* ---------------------------------------------------------------------- nav */
 
-function Nav({ view, setView }: { view: View; setView: (v: View) => void }) {
+function Nav({ view, setView, currency, onCurrency }: {
+  view: View; setView: (v: View) => void; currency: Cur; onCurrency: (c: Cur) => void;
+}) {
   const tabs: { id: View; label: string }[] = [
     { id: "home", label: "Overview" },
     { id: "assess", label: "Assessment" },
@@ -119,6 +139,20 @@ function Nav({ view, setView }: { view: View; setView: (v: View) => void }) {
               {t.label}
             </button>
           ))}
+          <span className="ml-2 inline-flex rounded-lg border border-[var(--color-line)] bg-white p-0.5"
+            role="group" aria-label="Currency">
+            {(["INR", "USD"] as const).map((c) => (
+              <button key={c} onClick={() => onCurrency(c)} aria-pressed={currency === c}
+                title={c === "INR" ? "Show amounts in Indian rupees" : "Show amounts in US dollars"}
+                className={`rounded-md px-2.5 py-1 text-[13px] font-semibold transition ${
+                  currency === c
+                    ? "bg-[var(--color-accent)] text-white"
+                    : "text-[var(--color-ink-soft)] hover:bg-[var(--color-canvas)]"
+                }`}>
+                {c === "INR" ? "₹" : "$"}
+              </button>
+            ))}
+          </span>
         </nav>
       </div>
     </header>

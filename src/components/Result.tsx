@@ -15,7 +15,7 @@ import {
 import type { ModelSpec, Prediction } from "../lib/model";
 import { FEATURE_LABELS } from "../lib/schema";
 import { money, pct } from "./ui";
-import { getRate, moneyRange } from "../lib/currency";
+import { getCode, getRate, moneyRange } from "../lib/currency";
 
 const TONE = [
   { name: "Low", color: "var(--color-low)", soft: "var(--color-low-soft)" },
@@ -127,6 +127,12 @@ export default function Result({
           </span>
           <span className="text-[14px] text-[var(--color-ink-faint)]">per year</span>
         </div>
+        <p className="mt-1.5 text-[13.5px] tabular-nums text-[var(--color-ink-faint)]">
+          {getCode() === "INR"
+            ? <>In US dollars: {moneyRange(prediction.costLow, prediction.costHigh, "USD")}</>
+            : <>In Indian rupees: {moneyRange(prediction.costLow, prediction.costHigh, "INR")}</>}
+          {" "}· switch currency with ₹ / $ at the top
+        </p>
         <p className="mt-3 text-[14.5px] leading-relaxed text-[var(--color-ink-soft)]">
           <strong>Half of the people with a profile like yours spent between these two
           amounts</strong> in a year — a quarter spent less, a quarter spent more. The
@@ -156,11 +162,20 @@ export default function Result({
           </span>
         </p>
         <p className="mt-3 rounded-lg bg-[var(--color-canvas)] px-3 py-2.5 text-[13px] leading-relaxed text-[var(--color-ink-soft)]">
-          <strong>About the rupee figure.</strong> The survey behind this model records{" "}
-          <em>US</em> healthcare spending in dollars, converted here at ₹{getRate()} to
-          the dollar. A US cost shown in rupees is still a US cost — the same
-          treatment is several times cheaper in India — so read this as American
-          prices in a familiar unit, not as an Indian hospital bill.
+          {getCode() === "INR" ? (
+            <>
+              <strong>About the rupee figure.</strong> The survey behind this model records{" "}
+              <em>US</em> healthcare spending in dollars, converted here at ₹{getRate()} to
+              the dollar. A US cost shown in rupees is still a US cost — the same
+              treatment is several times cheaper in India — so read this as American
+              prices in a familiar unit, not as an Indian hospital bill.
+            </>
+          ) : (
+            <>
+              <strong>About the dollar figure.</strong> These are US healthcare prices from
+              2024, in the same dollars the model was trained on — no conversion applied.
+            </>
+          )}
         </p>
         <p className="mt-3 text-[13px] text-[var(--color-ink-soft)]">
           Probability you have any healthcare spending at all this year:{" "}
